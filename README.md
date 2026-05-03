@@ -64,6 +64,3 @@ A high-fidelity Chrome Extension built with React, Vite, and Gemini AI. It extra
 - **Vite Multi-Input**: Used Vite's `rollupOptions` to bundle the popup, content script, and background script separately in a single build step.
 - **Readability Parser**: Chose `@mozilla/readability` because it's the gold standard for extracting "clean" article content from messy web pages.
 - **Gemini 1.5 Flash**: Selected for its high speed and generous free tier, making it ideal for a summarization extension.
-
----
-Built with ❤️ by Antigravity
