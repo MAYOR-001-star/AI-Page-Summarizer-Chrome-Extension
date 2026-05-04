@@ -28,6 +28,7 @@ function App() {
   const [wordCount, setWordCount] = useState<number | null>(null);
   const [summaryOption, setSummaryOption] = useState<'default' | 'short'>('default');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [needsRefresh, setNeedsRefresh] = useState(false);
 
   useEffect(() => {
     // Load theme and last summary
@@ -85,7 +86,16 @@ function App() {
 
       // Request content extraction
       console.log('Requesting content extraction from tab...');
-      const pageData = await chrome.tabs.sendMessage(tab.id, { action: 'extract_content' });
+      let pageData;
+      try {
+        pageData = await chrome.tabs.sendMessage(tab.id, { action: 'extract_content' });
+      } catch (err: any) {
+        if (err.message.includes('Could not establish connection') || err.message.includes('Receiving end does not exist')) {
+          setNeedsRefresh(true);
+          throw new Error('This page needs to be refreshed before it can be summarized.');
+        }
+        throw err;
+      }
       
       if (!pageData) {
         console.error('No response from content script');
@@ -176,6 +186,14 @@ function App() {
           </button>
         </div>
       </header>
+
+      {needsRefresh && (
+        <div className="refresh-notice anim-fade-in">
+          <RotateCcw size={16} />
+          <span>Please refresh this page to enable summarizing.</span>
+          <button onClick={() => chrome.tabs.reload()}>Refresh Now</button>
+        </div>
+      )}
 
       <main>
           {!summary && !loading && (
