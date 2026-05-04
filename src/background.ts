@@ -11,9 +11,7 @@ interface GeminiResponse {
 const PROXY_URL = 'https://ai-page-summarizer-chrome-extension.vercel.app/api/summarize';
 
 async function summarizeContent(content: string, option: string = 'default') {
-  console.log('summarizeContent called with option:', option);
   try {
-    console.log('Fetching from proxy:', PROXY_URL);
     const response = await fetch(PROXY_URL, {
       method: 'POST',
       headers: {
@@ -42,21 +40,16 @@ async function summarizeContent(content: string, option: string = 'default') {
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
   if (request.action === 'summarize') {
-    console.log('Background received summarize request');
     const { content, option } = request;
     
     summarizeContent(content, option)
       .then(summary => {
-        console.log('Summarization successful');
         sendResponse({ summary });
       })
       .catch(error => {
-        console.error('Summarization failed:', error);
         sendResponse({ error: error.message });
       });
     
     return true; // Keep channel open
   }
 });
-
-console.log('AI Page Summarizer: Background worker active.');
