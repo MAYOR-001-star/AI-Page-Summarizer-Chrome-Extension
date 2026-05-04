@@ -16,7 +16,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 app.post('/api/summarize', async (req, res) => {
-  const { content } = req.body;
+  const { content, option } = req.body;
 
   if (!GEMINI_API_KEY) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
@@ -26,19 +26,17 @@ app.post('/api/summarize', async (req, res) => {
     return res.status(400).json({ error: 'Content is required.' });
   }
 
+  const isShort = option === 'short';
   const prompt = `
     Please provide a structured summary of the following web page content.
-    The summary should include:
-    1. A brief overview (1-2 sentences).
-    2. Key insights or main points as bullet points.
-    3. An estimated reading time for the full content.
+    ${isShort ? 'The summary MUST be exactly 3 bullet points.' : 'The summary should include a brief overview, key insights, and reading time.'}
 
     Format the output as follows:
     OVERVIEW: [overview]
     KEY POINTS:
     - [point 1]
     - [point 2]
-    ...
+    ${isShort ? '- [point 3]' : '...'}
     ESTIMATED READING TIME: [X] minutes
 
     CONTENT:

@@ -5,17 +5,19 @@ A high-fidelity Chrome Extension built with React, Vite, and Gemini AI. It extra
 ## ✨ Features
 
 - **Intelligent Extraction**: Uses `@mozilla/readability` to pull main article content while ignoring ads and sidebars.
-- **AI-Powered Summaries**: Integrates with Google's Gemini 1.5 Flash for fast, accurate insights.
-- **Premium Design**: Modern Glassmorphism UI with smooth animations and dark mode support.
-- **Secure Storage**: Your API key is stored locally in your browser's secure storage.
-- **Caching**: Summaries are cached per URL to save on API calls.
+- **AI-Powered Summaries**: Integrates with Google's Gemini 1.5 Flash via a secure proxy.
+- **Summary Options**: Choose between a standard structured summary or a concise 3-bullet point version.
+- **Premium Design**: Modern Glassmorphism UI with smooth animations, supporting both **Dark** and **Light** modes.
+- **Security First**: API keys are handled by a secure proxy server, never exposed in the extension's frontend.
+- **Stats & Insights**: Displays word count, reading time, and key insights.
+- **Caching**: Summaries are cached per URL to save on API calls and provide instant loading.
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 19, TypeScript
-- **Bundler**: Vite 8
+- **Extension**: React 19, TypeScript, Vite 8
+- **Backend**: Node.js, Express (Proxy Server)
 - **AI**: Gemini 1.5 Flash API
-- **Styling**: Vanilla CSS (Custom Premium Design)
+- **Styling**: Vanilla CSS (Custom Glassmorphism System)
 - **Icons**: Lucide React
 
 ## 🚀 Getting Started
@@ -24,43 +26,45 @@ A high-fidelity Chrome Extension built with React, Vite, and Gemini AI. It extra
 - Node.js (v18+)
 - npm or yarn
 
-### 2. Installation
-1. Clone the repository or download the source code.
-2. Run `npm install` to install dependencies.
+### 2. Setup the Proxy Server
+For security, the API key is kept on the server.
+1. Navigate to the `server` directory: `cd server`
+2. Install dependencies: `npm install`
+3. Create a `.env` file from `.env.example`: `cp .env.example .env`
+4. Add your `GEMINI_API_KEY` to the `.env` file.
+5. Start the server: `npm start` (Running on `http://localhost:3000`)
+
+### 3. Build the Extension
+1. Go back to the root directory.
+2. Install dependencies: `npm install`
 3. Build the project:
    ```bash
    npm run build
    ```
 4. The production-ready extension will be in the `dist` folder.
 
-### 3. Load into Chrome
+### 4. Load into Chrome
 1. Open Chrome and navigate to `chrome://extensions/`.
 2. Enable **Developer mode** (toggle in the top right).
 3. Click **Load unpacked**.
 4. Select the `dist` folder from this project.
 
-### 4. Configuration
-1. Click the extension icon in your toolbar.
-2. Click the **Settings** (gear) icon.
-3. Enter your **Gemini API Key**.
-   - You can get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-4. Go back and start summarizing!
-
 ## 🏗️ Architecture
 
-- **`popup` (React App)**: The user interface that handles user interaction and displays summaries.
+- **`popup` (React App)**: The modern UI that handles user interaction, theme switching, and summary display.
 - **`content.ts`**: Injected into web pages to extract the DOM and parse content using Readability.
-- **`background.ts`**: A service worker that handles secure API calls to Gemini and manages message passing.
-- **`manifest.json`**: Defines permissions (activeTab, storage, scripting) and extension entry points.
+- **`background.ts`**: A service worker that handles communication between the popup and the secure proxy server.
+- **`Proxy Server`**: A lightweight Node.js backend that appends the API key and communicates with Google Gemini.
 
 ## 🔒 Security & Privacy
 
-- **No Exposed Keys**: API keys are never hardcoded and are stored locally using `chrome.storage.local`.
-- **Minimal Permissions**: Only requests the permissions necessary to function (activeTab for content extraction).
-- **Secure Communication**: Uses Chrome's message passing API for inter-script communication.
+- **No Exposed Secrets**: The Gemini API key is stored only on your proxy server. It is never sent to or stored in the browser.
+- **Sanitization**: React's built-in XSS protection handles the summary rendering.
+- **Minimal Permissions**: Only requests `activeTab`, `storage`, and `scripting` to function.
+- **Host Permissions**: Specifically scoped to communicate with the local proxy server.
 
 ## 📝 Trade-offs & Decisions
 
-- **Vite Multi-Input**: Used Vite's `rollupOptions` to bundle the popup, content script, and background script separately in a single build step.
-- **Readability Parser**: Chose `@mozilla/readability` because it's the gold standard for extracting "clean" article content from messy web pages.
-- **Gemini 1.5 Flash**: Selected for its high speed and generous free tier, making it ideal for a summarization extension.
+- **Proxy Architecture**: Moved away from client-side key storage to a proxy server to meet high security standards and prevent API key theft.
+- **Readability Parser**: Chose `@mozilla/readability` to ensure high-quality content extraction across a wide variety of news and blog sites.
+- **Vite Bundling**: Configured Vite to output a clean Manifest V3 structure while maintaining a modern React development workflow.

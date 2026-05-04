@@ -5,7 +5,11 @@ import {
   Clock, 
   AlertCircle,
   Copy,
-  RotateCcw
+  RotateCcw,
+  Sun,
+  Moon,
+  Trash2,
+  FileText
 } from 'lucide-react';
 import './App.css';
 
@@ -21,17 +25,19 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [pageTitle, setPageTitle] = useState('');
+  const [wordCount, setWordCount] = useState<number | null>(null);
+  const [summaryOption, setSummaryOption] = useState<'default' | 'short'>('default');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    // Load current page summary from storage
-    chrome.storage.local.get(['lastSummary'], (result: { [key: string]: any }) => {
-      // Get current tab info
+    // Load theme and last summary
+    chrome.storage.local.get(['lastSummary', 'theme'], (result: { lastSummary?: SummaryData, theme?: 'dark' | 'light' }) => {
+      if (result.theme) setTheme(result.theme);
+      
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentTab = tabs[0];
         if (currentTab) {
           setPageTitle(currentTab.title || 'Current Page');
-          
-          // Check if we have a cached summary for this URL
           if (result.lastSummary && result.lastSummary.url === currentTab.url) {
             setSummary(result.lastSummary);
           }
@@ -39,6 +45,17 @@ function App() {
       });
     });
   }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    chrome.storage.local.set({ theme: newTheme });
+  };
+
+  const handleClear = () => {
+    setSummary(null);
+    chrome.storage.local.remove('lastSummary');
+  };
 
 
   const handleSummarize = async () => {
@@ -60,11 +77,16 @@ function App() {
       const pageData = await chrome.tabs.sendMessage(tab.id, { action: 'extract_content' });
       
       if (pageData.error) throw new Error(pageData.error);
+      
+      // Calculate word count
+      const words = pageData.content.trim().split(/\s+/).length;
+      setWordCount(words);
 
       // Call background script for AI summary
       const response = await chrome.runtime.sendMessage({
         action: 'summarize',
-        content: pageData.content
+        content: pageData.content,
+        option: summaryOption
       });
 
       if (response.error) throw new Error(response.error);
@@ -109,11 +131,19 @@ function App() {
   };
 
   return (
-    <div className="container">
+    <div className={`container ${theme}`}>
       <header>
         <div className="logo-area">
           <Sparkles className="logo-icon" />
           <h1>AI Summarizer</h1>
+        </div>
+        <div style={{display: 'flex', gap: '8px'}}>
+          <button className="btn-icon" onClick={handleClear} title="Clear summary">
+            <Trash2 size={18} />
+          </button>
+          <button className="btn-icon" onClick={toggleTheme} title="Toggle theme">
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
       </header>
 
@@ -125,6 +155,25 @@ function App() {
                 <h2 style={{fontSize: '1rem', marginBottom: '4px'}}>{pageTitle}</h2>
                 <p style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>Ready to summarize this page?</p>
               </div>
+              
+              <div className="options-group">
+                <label>Summary Type</label>
+                <div className="segmented-control">
+                  <button 
+                    className={summaryOption === 'default' ? 'active' : ''} 
+                    onClick={() => setSummaryOption('default')}
+                  >
+                    Standard
+                  </button>
+                  <button 
+                    className={summaryOption === 'short' ? 'active' : ''} 
+                    onClick={() => setSummaryOption('short')}
+                  >
+                    3 Bullets
+                  </button>
+                </div>
+              </div>
+
               <button className="btn btn-primary" onClick={handleSummarize}>
                 <Sparkles size={18} /> Summarize Page
               </button>
@@ -167,9 +216,17 @@ function App() {
                   </div>
                 )}
                 
-                <div className="reading-time">
-                  <Clock size={16} />
-                  <span>Full Reading Time: {summary.readingTime}</span>
+                <div className="stats-row">
+                  <div className="stat-item">
+                    <Clock size={14} />
+                    <span>Read: {summary.readingTime}</span>
+                  </div>
+                  {wordCount && (
+                    <div className="stat-item">
+                      <FileText size={14} />
+                      <span>{wordCount} words</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

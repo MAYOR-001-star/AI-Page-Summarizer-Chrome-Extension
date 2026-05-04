@@ -10,14 +10,14 @@ interface GeminiResponse {
 
 const PROXY_URL = 'http://localhost:3000/api/summarize';
 
-async function summarizeContent(content: string) {
+async function summarizeContent(content: string, option: string = 'default') {
   try {
     const response = await fetch(PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, option }),
     });
 
     const data: GeminiResponse = await response.json();
@@ -40,9 +40,9 @@ async function summarizeContent(content: string) {
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
   if (request.action === 'summarize') {
-    const { content } = request;
+    const { content, option } = request;
     
-    summarizeContent(content)
+    summarizeContent(content, option)
       .then(summary => sendResponse({ summary }))
       .catch(error => sendResponse({ error: error.message }));
     
