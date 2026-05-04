@@ -9,7 +9,8 @@ import {
   Sun,
   Moon,
   Trash2,
-  FileText
+  FileText,
+  Highlighter
 } from 'lucide-react';
 import './App.css';
 
@@ -170,6 +171,22 @@ function App() {
     navigator.clipboard.writeText(text);
   };
 
+  const handleHighlight = async () => {
+    if (!summary) return;
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        await chrome.tabs.sendMessage(tab.id, { 
+          action: 'highlight_points', 
+          points: summary.keyPoints 
+        });
+        window.close(); // Close popup so user can see highlights
+      }
+    } catch (err) {
+      console.error('Highlighting failed:', err);
+    }
+  };
+
   return (
     <div className={`container ${theme}`}>
       <header>
@@ -286,6 +303,14 @@ function App() {
                   <RotateCcw size={18} /> <span style={{fontSize: '0.85rem'}}>Retry</span>
                 </button>
               </div>
+              
+              <button 
+                className="btn btn-secondary anim-fade-in" 
+                style={{marginTop: '12px', width: '100%', background: 'rgba(99, 102, 241, 0.1)'}} 
+                onClick={handleHighlight}
+              >
+                <Highlighter size={16} /> Highlight on Page
+              </button>
             </div>
           )}
         </main>

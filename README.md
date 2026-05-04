@@ -1,70 +1,51 @@
 # AI Page Summarizer Chrome Extension
 
-A high-fidelity Chrome Extension built with React, Vite, and Gemini AI. It extracts meaningful content from any webpage and provides a structured summary, key insights, and estimated reading time.
+A professional, high-fidelity Chrome Extension (Manifest V3) that extracts article content and generates structured summaries using AI (Groq/Llama 3).
 
 ## ✨ Features
-
-- **Intelligent Extraction**: Uses `@mozilla/readability` to pull main article content while ignoring ads and sidebars.
-- **AI-Powered Summaries**: Integrates with Google's Gemini 1.5 Flash via a secure proxy.
-- **Summary Options**: Choose between a standard structured summary or a concise 3-bullet point version.
-- **Premium Design**: Modern Glassmorphism UI with smooth animations, supporting both **Dark** and **Light** modes.
-- **Security First**: API keys are handled by a secure proxy server, never exposed in the extension's frontend.
-- **Stats & Insights**: Displays word count, reading time, and key insights.
-- **Caching**: Summaries are cached per URL to save on API calls and provide instant loading.
-
-## 🛠️ Tech Stack
-
-- **Extension**: React 19, TypeScript, Vite 8
-- **Backend**: Node.js, Express (Proxy Server)
-- **AI**: Gemini 1.5 Flash API
-- **Styling**: Vanilla CSS (Custom Glassmorphism System)
-- **Icons**: Lucide React
+- **Smart Extraction**: Uses `@mozilla/readability` to pull main content while ignoring ads and sidebars.
+- **AI-Powered Summaries**: Provides a structured Overview, Key Insights, and Estimated Reading Time.
+- **Highlighting**: One-click "Highlight on Page" to find key insights in the original text.
+- **Premium UI**: Glassmorphism design with Dark/Light mode support.
+- **Secure Architecture**: API keys are hidden in a Node.js proxy server (Vercel) to prevent exposure.
+- **Performance**: Caches summaries locally using `chrome.storage` to save API credits.
 
 ## 🚀 Getting Started
 
-### 1. Prerequisites
-- Node.js (v18+)
-- npm or yarn
+### 1. Setup the Backend (Proxy Server)
+To keep your API key secure, the extension communicates with a proxy server.
+1.  Navigate to the `server/` directory.
+2.  Install dependencies: `npm install`.
+3.  Create a `.env` file based on `.env.example`.
+4.  Add your `GROQ_API_KEY` (Get one for free at [Groq Cloud](https://console.groq.com/keys)).
+5.  Deploy to **Vercel** (or any Node.js host).
+6.  Set the `GROQ_API_KEY` in your Vercel Environment Variables.
 
-### 2. Setup the Proxy Server
-For security, the API key is kept on the server.
-1. Navigate to the `server` directory: `cd server`
-2. Install dependencies: `npm install`
-3. Create a `.env` file from `.env.example`: `cp .env.example .env`
-4. Add your `GEMINI_API_KEY` to the `.env` file.
-5. Start the server: `npm start` (Running on `http://localhost:3000`)
+### 2. Build the Extension
+1.  In the root directory, run: `npm install`.
+2.  Run the build script: `npm run build`.
+3.  This generates the `dist/` folder.
 
-### 3. Build the Extension
-1. Go back to the root directory.
-2. Install dependencies: `npm install`
-3. Build the project:
-   ```bash
-   npm run build
-   ```
-4. The production-ready extension will be in the `dist` folder.
-
-### 4. Load into Chrome
-1. Open Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** (toggle in the top right).
-3. Click **Load unpacked**.
-4. Select the `dist` folder from this project.
+### 3. Install in Chrome
+1.  Open Chrome and go to `chrome://extensions/`.
+2.  Enable **Developer mode** (top right).
+3.  Click **Load unpacked** and select the **`dist/`** folder.
 
 ## 🏗️ Architecture
+- **Frontend**: React + Vite + TypeScript.
+- **Manifest V3**: Using a service worker (`background.ts`) for messaging and content scripts for DOM access.
+- **Communication**: 
+    - `App.tsx` (Popup) -> `background.ts` (Service Worker) -> `server/index.js` (Proxy) -> Groq API.
+- **Security**: The extension never knows your API key; it only sends content to your proxy.
 
-- **`popup` (React App)**: The modern UI that handles user interaction, theme switching, and summary display.
-- **`content.ts`**: Injected into web pages to extract the DOM and parse content using Readability.
-- **`background.ts`**: A service worker that handles communication between the popup and the secure proxy server.
-- **`Proxy Server`**: A lightweight Node.js backend that appends the API key and communicates with Google Gemini.
+## 🛡️ Security Decisions
+- **No Hardcoded Keys**: All API interaction happens server-side.
+- **Content Sanitization**: Uses safe DOM manipulation to prevent XSS during highlighting.
+- **Minimal Permissions**: Only requests `activeTab`, `storage`, and `scripting`.
 
-## 🔒 Security & Privacy
+## 🛠️ Trade-offs & Decisions
+- **Groq over Gemini**: Switched to Groq (Llama 3) for faster response times and better compatibility with free-tier accounts.
+- **ES Module Loader**: Implemented a custom `content-loader.js` to support Vite's ES module output in Chrome's non-module content script environment.
 
-- **No Exposed Secrets**: The Gemini API key is stored only on your proxy server. It is never sent to or stored in the browser.
-- **Sanitization**: React's built-in XSS protection handles the summary rendering.
-- **Minimal Permissions**: Only requests `activeTab`, `storage`, and `scripting` to function.
-- **Host Permissions**: Specifically scoped to communicate with the local proxy server.
-
-## 📝 Trade-offs & Decisions
-
-- **Proxy Architecture**: Moved away from client-side key storage to a proxy server to meet high security standards and prevent API key theft.
-- **Readability Parser**: Chose `@mozilla/readability` to ensure high-quality content extraction across a wide variety of news and blog sites.
-- **Vite Bundling**: Configured Vite to output a clean Manifest V3 structure while maintaining a modern React development workflow.
+## 📝 License
+MIT
