@@ -177,6 +177,7 @@ function App() {
 
   return (
     <div className={`container ${theme}`}>
+      <div className="bg-aura"></div>
       <header>
         <div className="logo-area">
           <Sparkles className="logo-icon" />
