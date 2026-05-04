@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
 import { 
   Sparkles, 
-  Settings, 
-  ChevronLeft, 
   BookOpen, 
   Clock, 
   AlertCircle,
   Copy,
-  RotateCcw,
-  ExternalLink
+  RotateCcw
 } from 'lucide-react';
 import './App.css';
 
@@ -23,17 +20,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
   const [pageTitle, setPageTitle] = useState('');
 
   useEffect(() => {
-    // Load API key and current page summary from storage
-    chrome.storage.local.get(['geminiApiKey', 'lastSummary'], (result: { [key: string]: any }) => {
-      if (result.geminiApiKey) {
-        setApiKey(result.geminiApiKey);
-      }
-      
+    // Load current page summary from storage
+    chrome.storage.local.get(['lastSummary'], (result: { [key: string]: any }) => {
       // Get current tab info
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentTab = tabs[0];
@@ -49,17 +40,8 @@ function App() {
     });
   }, []);
 
-  const saveApiKey = (key: string) => {
-    setApiKey(key);
-    chrome.storage.local.set({ geminiApiKey: key });
-  };
 
   const handleSummarize = async () => {
-    if (!apiKey) {
-      setError('Please set your Gemini API key in settings.');
-      setShowSettings(true);
-      return;
-    }
 
     setLoading(true);
     setError(null);
@@ -82,8 +64,7 @@ function App() {
       // Call background script for AI summary
       const response = await chrome.runtime.sendMessage({
         action: 'summarize',
-        content: pageData.content,
-        apiKey: apiKey
+        content: pageData.content
       });
 
       if (response.error) throw new Error(response.error);
@@ -134,41 +115,9 @@ function App() {
           <Sparkles className="logo-icon" />
           <h1>AI Summarizer</h1>
         </div>
-        <button 
-          className="btn-icon" 
-          onClick={() => setShowSettings(!showSettings)}
-          title="Settings"
-        >
-          {showSettings ? <ChevronLeft /> : <Settings size={20} />}
-        </button>
       </header>
 
-      {showSettings ? (
-        <div className="card settings-view">
-          <h3>Extension Settings</h3>
-          <div className="settings-group">
-            <label htmlFor="apiKey">Gemini API Key</label>
-            <input 
-              id="apiKey"
-              type="password" 
-              placeholder="Enter your API key..."
-              value={apiKey}
-              onChange={(e) => saveApiKey(e.target.value)}
-            />
-            <p className="footer">
-              Your key is stored locally and never sent to our servers.
-              <br />
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{color: 'var(--primary)', textDecoration: 'none'}}>
-                Get a free key here <ExternalLink size={12} />
-              </a>
-            </p>
-          </div>
-          <button className="btn btn-primary" onClick={() => setShowSettings(false)}>
-            Back to Summarizer
-          </button>
-        </div>
-      ) : (
-        <main>
+      <main>
           {!summary && !loading && (
             <div className="card empty-state">
               <BookOpen className="empty-icon" />
@@ -235,7 +184,6 @@ function App() {
             </div>
           )}
         </main>
-      )}
 
       <footer className="footer">
         Powered by Gemini AI • AI Page Summarizer v1.0

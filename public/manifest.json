@@ -8,6 +8,9 @@
     "storage",
     "scripting"
   ],
+  "host_permissions": [
+    "http://localhost:3000/*"
+  ],
   "action": {
     "default_popup": "index.html",
     "default_icon": {
