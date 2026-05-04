@@ -26,7 +26,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["assets/content.js"]
+      "js": ["content-loader.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/content.js", "assets/*.js"],
+      "matches": ["<all_urls>"]
     }
   ],
   "icons": {

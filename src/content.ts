@@ -27,9 +27,16 @@ function extractContent() {
 
 // Listen for messages from the popup or background script
 chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+  console.log('Content script received message:', request.action);
   if (request.action === 'extract_content') {
-    const data = extractContent();
-    sendResponse(data);
+    try {
+      const data = extractContent();
+      console.log('Content extraction successful');
+      sendResponse(data);
+    } catch (e) {
+      console.error('Content extraction failed:', e);
+      sendResponse({ error: 'Failed to extract content from this page.' });
+    }
   }
   return true; // Keep the message channel open for async response
 });

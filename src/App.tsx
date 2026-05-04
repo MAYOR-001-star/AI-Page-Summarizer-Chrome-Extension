@@ -62,34 +62,64 @@ function App() {
 
     setLoading(true);
     setError(null);
+    console.log('Summarization started...');
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) throw new Error('No active tab found.');
+      if (!tab?.id) {
+        console.error('No active tab found');
+        throw new Error('No active tab found.');
+      }
+      console.log('Target tab found:', tab.id);
 
-      // Inject content script if not already there (though manifest handles it, sometimes we need to be sure)
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['assets/content.js']
-      }).catch(() => {/* Ignore if already loaded */});
+      // Inject content script if not already there
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['assets/content.js']
+        });
+        console.log('Content script injected successfully');
+      } catch (e) {
+        console.log('Content script already present or injection restricted:', e);
+      }
 
       // Request content extraction
+      console.log('Requesting content extraction from tab...');
       const pageData = await chrome.tabs.sendMessage(tab.id, { action: 'extract_content' });
       
-      if (pageData.error) throw new Error(pageData.error);
+      if (!pageData) {
+        console.error('No response from content script');
+        throw new Error('Could not communicate with the page. Please refresh the tab and try again.');
+      }
+
+      if (pageData.error) {
+        console.error('Content extraction error:', pageData.error);
+        throw new Error(pageData.error);
+      }
+      console.log('Content extracted successfully, length:', pageData.content?.length);
       
       // Calculate word count
       const words = pageData.content.trim().split(/\s+/).length;
       setWordCount(words);
 
       // Call background script for AI summary
+      console.log('Sending content to background script for summarization...');
       const response = await chrome.runtime.sendMessage({
         action: 'summarize',
         content: pageData.content,
         option: summaryOption
       });
 
-      if (response.error) throw new Error(response.error);
+      if (!response) {
+        console.error('No response from background script');
+        throw new Error('Background service is not responding. Please reload the extension.');
+      }
+
+      if (response.error) {
+        console.error('Background script error:', response.error);
+        throw new Error(response.error);
+      }
+      console.log('Summary received from background script');
 
       // Parse the AI response (Gemini output format can vary, so we'll do some basic parsing)
       const rawSummary = response.summary;
