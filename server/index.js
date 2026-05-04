@@ -47,34 +47,63 @@ app.post('/api/summarize', async (req, res) => {
     ${content.substring(0, 15000)}
   `;
 
-  try {
-    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }]
-      }),
-    });
+  // List of models to try in order of preference
+  const modelsToTry = [
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-pro'
+  ];
 
-    const data = await response.json();
+  let lastError = null;
 
-    if (data.error) {
-      return res.status(response.status).json({ error: data.error.message });
+  for (const modelName of modelsToTry) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+      console.log(`Trying model: ${modelName}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+        return res.json({ summary: data.candidates[0].content.parts[0].text });
+      } else if (data.error) {
+        lastError = data.error.message;
+        console.warn(`Model ${modelName} failed: ${lastError}`);
+        // If it's a model not found error, we'll try the next one
+        if (lastError.includes('not found') || lastError.includes('not supported')) continue;
+        // If it's something else (like API key error), stop and report
+        return res.status(data.error.code || 500).json({ error: lastError });
+      }
+    } catch (err) {
+      lastError = err.message;
+      console.error(`Fetch error for ${modelName}:`, err);
     }
-
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-      res.json({ summary: data.candidates[0].content.parts[0].text });
-    } else {
-      res.status(500).json({ error: 'Failed to generate summary from AI.' });
-    }
-  } catch (error) {
-    console.error('Proxy Error:', error);
-    res.status(500).json({ error: 'Internal server error while calling Gemini API.' });
   }
+
+  // If we reach here, all models failed. Let's try to discover what's available for this key.
+  try {
+    const discoveryUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
+    const discoveryRes = await fetch(discoveryUrl);
+    const discoveryData = await discoveryRes.json();
+    
+    if (discoveryData.models) {
+      const availableModels = discoveryData.models.map(m => m.name.split('/').pop()).join(', ');
+      return res.status(500).json({ 
+        error: `Could not find a working model. Your key has access to: ${availableModels}. Please tell me which one to use!` 
+      });
+    }
+  } catch (e) {
+    console.error('Discovery failed:', e);
+  }
+
+  res.status(500).json({ error: `Summarization failed after trying several models. Last error: ${lastError}` });
 });
 
 app.listen(PORT, () => {
