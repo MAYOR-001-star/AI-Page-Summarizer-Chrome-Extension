@@ -8,7 +8,7 @@ interface GeminiResponse {
   error?: string;
 }
 
-const PROXY_URL = 'http://localhost:3000/api/summarize';
+const PROXY_URL = 'https://ai-page-summarizer-chrome-extension.vercel.app/api/summarize';
 
 async function summarizeContent(content: string, option: string = 'default') {
   try {

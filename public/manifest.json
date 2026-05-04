@@ -9,7 +9,7 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:3000/*"
+    "https://ai-page-summarizer-chrome-extension.vercel.app/*"
   ],
   "action": {
     "default_popup": "index.html",
