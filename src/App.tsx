@@ -33,20 +33,26 @@ function App() {
 
   useEffect(() => {
     // Load theme and last summary
-    chrome.storage.local.get(['lastSummary', 'theme'], (result: { lastSummary?: SummaryData, theme?: 'dark' | 'light' }) => {
+    chrome.storage.local.get(['lastSummary', 'theme', 'pendingSummarize'], (result: { lastSummary?: SummaryData, theme?: 'dark' | 'light', pendingSummarize?: number }) => {
       if (result.theme) setTheme(result.theme);
       
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentTab = tabs[0];
         if (currentTab) {
           setPageTitle(currentTab.title || 'Current Page');
-          if (result.lastSummary && result.lastSummary.url === currentTab.url) {
+          
+          // Check if we should automatically summarize after refresh
+          if (result.pendingSummarize === currentTab.id) {
+            chrome.storage.local.remove('pendingSummarize');
+            handleSummarize(true);
+          } else if (result.lastSummary && result.lastSummary.url === currentTab.url) {
             setSummary(result.lastSummary);
           }
         }
       });
     });
   }, []);
+
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -60,10 +66,14 @@ function App() {
   };
 
 
-  const handleSummarize = async () => {
+  const isRestrictedUrl = (url?: string) => {
+    return !url || url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('https://chrome.google.com/webstore');
+  };
 
+  const handleSummarize = async (isAutoStart = false) => {
     setLoading(true);
     setError(null);
+    setNeedsRefresh(false);
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -71,14 +81,33 @@ function App() {
         throw new Error('No active tab found.');
       }
 
-      // Inject content script if not already there
+      if (isRestrictedUrl(tab.url)) {
+        throw new Error('This extension cannot run on Chrome system pages or the Web Store.');
+      }
+
+      // Check if content script is already there
+      let isResponsive = false;
       try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['assets/content.js']
-        });
+        const pingResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+        if (pingResponse?.success) isResponsive = true;
       } catch (e) {
-        // Content script already present or injection restricted
+        // Not responsive
+      }
+
+      if (!isResponsive) {
+        // Try to inject
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['assets/content.js']
+          });
+          // Wait a bit for injection
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (e) {
+          console.error('Injection failed:', e);
+          setNeedsRefresh(true);
+          throw new Error('This page needs a quick refresh to enable the summarizer.');
+        }
       }
 
       // Request content extraction
@@ -86,51 +115,48 @@ function App() {
       try {
         pageData = await chrome.tabs.sendMessage(tab.id, { action: 'extract_content' });
       } catch (err: any) {
-        if (err.message.includes('Could not establish connection') || err.message.includes('Receiving end does not exist')) {
-          setNeedsRefresh(true);
-          throw new Error('This page needs to be refreshed before it can be summarized.');
-        }
-        throw err;
+        console.error('Message failed:', err);
+        setNeedsRefresh(true);
+        throw new Error('Communication lost. Please refresh the page.');
       }
       
-      if (!pageData) {
-        throw new Error('Could not communicate with the page. Please refresh the tab and try again.');
-      }
-
-      if (pageData.error) {
-        throw new Error(pageData.error);
+      if (!pageData || pageData.error) {
+        throw new Error(pageData?.error || 'Could not extract content. Please try again.');
       }
       
-      // Calculate word count
       const words = pageData.content.trim().split(/\s+/).length;
       setWordCount(words);
 
-      // Call background script for AI summary
       const response = await chrome.runtime.sendMessage({
         action: 'summarize',
         content: pageData.content,
         option: summaryOption
       });
 
-      if (!response) {
-        throw new Error('Background service is not responding. Please reload the extension.');
+      if (!response || response.error) {
+        throw new Error(response?.error || 'AI service failed. Please try again later.');
       }
 
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      // Parse the AI response (Gemini output format can vary, so we'll do some basic parsing)
-      const rawSummary = response.summary;
-      const parsedData = parseSummary(rawSummary, tab.url || '');
-      
+      const parsedData = parseSummary(response.summary, tab.url || '');
       setSummary(parsedData);
       chrome.storage.local.set({ lastSummary: parsedData });
       
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      if (!needsRefresh) {
+        setError(err.message || 'An unexpected error occurred.');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefreshAndSummarize = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      // Set a flag to summarize after reload
+      await chrome.storage.local.set({ pendingSummarize: tab.id });
+      chrome.tabs.reload(tab.id);
+      window.close(); // Close popup while page reloads
     }
   };
 
@@ -195,11 +221,17 @@ function App() {
 
       {needsRefresh && (
         <div className="refresh-notice anim-fade-in">
-          <RotateCcw size={16} />
-          <span>Please refresh this page to enable summarizing.</span>
-          <button onClick={() => chrome.tabs.reload()}>Refresh Now</button>
+          <div className="refresh-content">
+            <RotateCcw size={18} className="spin-slow" />
+            <div className="refresh-text">
+              <strong>Action Required</strong>
+              <span>This page needs a quick refresh to enable AI features.</span>
+            </div>
+          </div>
+          <button onClick={handleRefreshAndSummarize} className="btn-refresh">Refresh & Summarize</button>
         </div>
       )}
+
 
       <main>
           {!summary && !loading && (
