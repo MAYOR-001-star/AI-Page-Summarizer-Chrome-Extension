@@ -88,7 +88,9 @@ function highlightPoints(points: string[]) {
 
 // Listen for messages from the popup or background script
 chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
-  if (request.action === 'extract_content') {
+  if (request.action === 'ping') {
+    sendResponse({ success: true });
+  } else if (request.action === 'extract_content') {
     try {
       const data = extractContent();
       sendResponse(data);
@@ -101,3 +103,4 @@ chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.Mess
   }
   return true; // Keep the message channel open for async response
 });
+
